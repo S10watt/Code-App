@@ -177,6 +177,7 @@ function syncThemeControls() {
 function syncEntryColorControls(cardStyle = null) {
   const colors = cardStyle || {};
   document.getElementById('entryColorsEnabled').checked = Boolean(colors.enabled);
+  document.getElementById('entryColorSettings').open = Boolean(colors.enabled);
   document.getElementById('entryCardGradient').checked = Boolean(colors.gradient);
   document.getElementById('entryCardBg').value = colors.background || theme.cardBg;
   document.getElementById('entryCardGradientEnd').value = colors.gradientEnd || theme.cardGradientEnd;
@@ -194,6 +195,7 @@ function syncEntryColorControls(cardStyle = null) {
 function syncPersonColorControls(cardStyle = null) {
   const colors = cardStyle || {};
   document.getElementById('actressColorsEnabled').checked = Boolean(colors.enabled);
+  document.getElementById('personColorSettings').open = Boolean(colors.enabled);
   document.getElementById('actressCardGradient').checked = Boolean(colors.gradient);
   document.getElementById('actressCardBg').value = colors.background || theme.cardBg;
   document.getElementById('actressCardGradientEnd').value = colors.gradientEnd || theme.cardGradientEnd;
@@ -714,6 +716,7 @@ document.querySelectorAll('.view-tab').forEach(button => {
   button.addEventListener('click', () => setActiveView(button.dataset.view));
 });
 document.getElementById('actressColorsEnabled').addEventListener('change', event => {
+  if (event.target.checked) document.getElementById('personColorSettings').open = true;
   document.getElementById('actressColorFields').classList.toggle('color-fields-disabled', !event.target.checked);
   document.querySelectorAll('#actressColorFields input[type="color"], #actressCardGradient').forEach(input => {
     input.disabled = !event.target.checked;
@@ -760,6 +763,7 @@ document.getElementById('resetThemeBtn').addEventListener('click', () => {
   saveTheme();
 });
 document.getElementById('entryColorsEnabled').addEventListener('change', event => {
+  if (event.target.checked) document.getElementById('entryColorSettings').open = true;
   document.getElementById('entryColorFields').classList.toggle('color-fields-disabled', !event.target.checked);
   document.querySelectorAll('#entryColorFields input[type="color"], #entryCardGradient').forEach(input => {
     input.disabled = !event.target.checked;

@@ -66,13 +66,13 @@
       <input type="text" id="categoryInput" placeholder="Kategorie" />
       <input type="text" id="actressInput" placeholder="Actress (optional)" />
       <input type="text" id="tagsInput" placeholder="Tags (mit Komma trennen)" />
-      <fieldset class="settings-group entry-colors">
-        <legend>Kartenfarben</legend>
-        <label class="toggle-field" for="entryColorsEnabled">
+      <details id="entryColorSettings" class="settings-group entry-colors color-settings">
+        <summary>Kartenfarben anpassen</summary>
+        <label class="toggle-field color-enable-option" for="entryColorsEnabled">
           <input type="checkbox" id="entryColorsEnabled" />
           Eigene Farben für diese Karte verwenden
         </label>
-        <div id="entryColorFields" class="color-grid">
+        <div id="entryColorFields" class="color-grid color-fields-disabled">
           <label class="toggle-field color-gradient-toggle" for="entryCardGradient">
             <input type="checkbox" id="entryCardGradient" />
             Farbverlauf für diese Karte
@@ -99,7 +99,7 @@
             <input type="color" id="entryChipText" />
           </label>
         </div>
-      </fieldset>
+      </details>
       <div class="modal-buttons">
         <button id="saveBtn" class="primary-btn">Speichern</button>
         <button id="cancelBtn" class="secondary-btn">Abbrechen</button>
@@ -134,9 +134,9 @@
           <input type="text" id="actressCupSizeInput" placeholder="z. B. C" />
         </label>
       </div>
-      <fieldset class="settings-group entry-colors">
-        <legend>Kartenfarben</legend>
-        <label id="personColorsLabel" class="toggle-field" for="actressColorsEnabled">
+      <details id="personColorSettings" class="settings-group entry-colors color-settings">
+        <summary>Kartenfarben anpassen</summary>
+        <label id="personColorsLabel" class="toggle-field color-enable-option" for="actressColorsEnabled">
           <input type="checkbox" id="actressColorsEnabled" />
           Eigene Farben für diese Karte verwenden
         </label>
@@ -161,7 +161,7 @@
             <input type="color" id="actressCardAccent" disabled />
           </label>
         </div>
-      </fieldset>
+      </details>
       <div class="modal-buttons">
         <button id="saveActressBtn" class="primary-btn" type="button">Speichern</button>
         <button id="cancelActressBtn" class="secondary-btn" type="button">Abbrechen</button>
