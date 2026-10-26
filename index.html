@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>JAV Codes</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>JAV Codes</h1>
+      <button id="addBtn" class="primary-btn">+ Neu</button>
+    </header>
+
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Suchen nach Code, Actress, Tags..." />
+    </div>
+
+    <div class="sort-bar">
+      <label>Sortieren:</label>
+      <select id="sortSelect">
+        <option value="code">Code</option>
+        <option value="category">Kategorie</option>
+        <option value="actress">Actress</option>
+        <option value="date">Neueste zuerst</option>
+      </select>
+    </div>
+
+    <div id="list" class="list"></div>
+  </div>
+
+  <!-- Modal zum Hinzufügen / Bearbeiten -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <h2 id="modalTitle">Neuer Eintrag</h2>
+      <input type="text" id="codeInput" placeholder="Code (z.B. MISM-464)" />
+      <input type="text" id="categoryInput" placeholder="Kategorie" />
+      <input type="text" id="actressInput" placeholder="Actress" />
+      <input type="text" id="tagsInput" placeholder="Tags (mit Komma trennen)" />
+      <div class="modal-buttons">
+        <button id="saveBtn" class="primary-btn">Speichern</button>
+        <button id="cancelBtn" class="secondary-btn">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
