@@ -507,6 +507,7 @@ function escapeHtml(value) {
 }
 
 function setCollection(collection) {
+  if (collection !== activeCollection) searchInput.value = '';
   activeCollection = collection;
   localStorage.setItem('javSelectedCollection', collection);
   document.getElementById('pageTitle').textContent = collection;
@@ -539,9 +540,12 @@ function updateCollectionFields() {
   document.getElementById('tagsInput').placeholder = isJav
     ? 'Tags (mit Komma trennen)'
     : 'Genre (mit Komma trennen)';
+  document.getElementById('charactersInput').classList.toggle('hidden', !isAnime);
   document.getElementById('searchInput').placeholder = isJav
     ? 'Suchen nach Code, Actress, Tags...'
-    : 'Suchen nach Titel, Publisher, Genre...';
+    : isAnime
+      ? 'Suchen nach Titel, Publisher, Genre, Charakter...'
+      : 'Suchen nach Titel, Publisher, Genre...';
   sortSelect.querySelector('option[value="actress"]').textContent = isJav
     ? 'Actress'
     : 'Publisher';
@@ -558,10 +562,12 @@ function setActiveView(view) {
   searchInput.placeholder = view === 'actresses'
     ? 'Suchen nach Actress, Körpergröße, Körbchengröße...'
     : view === 'characters'
-      ? 'Suchen nach Charakter...'
+      ? 'Suchen nach Charakter oder Serie...'
       : (activeCollection === 'JAV'
       ? 'Suchen nach Code, Actress, Tags...'
-      : 'Suchen nach Titel, Publisher, Genre...');
+      : activeCollection === 'Anime'
+        ? 'Suchen nach Titel, Publisher, Genre, Charakter...'
+        : 'Suchen nach Titel, Publisher, Genre...');
   document.querySelectorAll('#peopleViewTabs .view-tab').forEach(button => {
     const isActive = button.dataset.view === view;
     button.classList.toggle('active', isActive);
@@ -628,7 +634,7 @@ function renderPeople(people, type) {
   listEl.innerHTML = filtered.length === 0
     ? `<p class="empty-list">Keine ${type === 'character' ? 'Charaktere' : 'Actress'} gefunden</p>`
     : filtered.map(person => `
-      <article class="card actress-card${person.photoBackground && person.photo ? ' has-photo-background' : ''}" data-person-id="${escapeHtml(person.id)}"${getCardStyleAttribute(person)}>
+      <article class="card actress-card person-card-link${person.photoBackground && person.photo ? ' has-photo-background' : ''}" data-person-id="${escapeHtml(person.id)}" data-person-type="${type}" tabindex="0" aria-label="${escapeHtml(person.name)} anklicken, um zugehörige Karten anzuzeigen"${getCardStyleAttribute(person)}>
         <div class="actress-card-background" data-person-background="${escapeHtml(person.id)}" aria-hidden="true"></div>
         <div class="actress-photo-placeholder${person.photoBackground && person.photo ? ' hidden' : ''}" data-person-photo="${escapeHtml(person.id)}" aria-hidden="true">♡</div>
         <div class="actress-card-content">
@@ -694,7 +700,8 @@ function render() {
       String(entry.code || '').toLowerCase().includes(query) ||
       String(entry.category || '').toLowerCase().includes(query) ||
       String(entry.publisher || entry.actress || '').toLowerCase().includes(query) ||
-      String(entry.genre || entry.tags || '').toLowerCase().includes(query)
+      String(entry.genre || entry.tags || '').toLowerCase().includes(query) ||
+      String(entry.characters || '').toLowerCase().includes(query)
     );
   }
 
@@ -725,6 +732,7 @@ function render() {
           <div class="category">${escapeHtml(entry.category || 'Ohne Kategorie')}</div>
           <div class="actress">${isJav ? '' : 'Publisher: '}${escapeHtml(person || '–')}</div>
           <div class="tags">${isJav ? '' : 'Genre: '}${escapeHtml(details || '–')}</div>
+          ${!isJav && entry.collection === 'Anime' && entry.characters ? `<div class="tags">Charaktere: ${escapeHtml(entry.characters)}</div>` : ''}
         </div>
       `;
     }).join('');
@@ -751,12 +759,36 @@ function render() {
 
 listEl.addEventListener('click', event => {
   const button = event.target.closest('.export-btn');
-  if (!button) return;
-  exportSingleCard(button.dataset.exportType, button.dataset.exportId).catch(error => {
-    console.error(error);
-    alert(`Kartenexport fehlgeschlagen: ${error.message}`);
-  });
+  if (button) {
+    exportSingleCard(button.dataset.exportType, button.dataset.exportId).catch(error => {
+      console.error(error);
+      alert(`Kartenexport fehlgeschlagen: ${error.message}`);
+    });
+    return;
+  }
+  if (event.target.closest('button')) return;
+  const personCard = event.target.closest('.person-card-link');
+  if (personCard) showPersonEntries(personCard.dataset.personId, personCard.dataset.personType);
 });
+
+listEl.addEventListener('keydown', event => {
+  if ((event.key !== 'Enter' && event.key !== ' ') || event.target.closest('button')) return;
+  const personCard = event.target.closest('.person-card-link');
+  if (!personCard) return;
+  event.preventDefault();
+  showPersonEntries(personCard.dataset.personId, personCard.dataset.personType);
+});
+
+function showPersonEntries(id, type) {
+  const people = type === 'character' ? animeCharacters : actresses;
+  const person = people.find(item => String(item.id) === String(id));
+  if (!person) return;
+  const collection = type === 'character' ? 'Anime' : 'JAV';
+  setCollection(collection);
+  searchInput.value = person.name;
+  setActiveView('codes');
+  render();
+}
 
 function openActressModal(editId = null) {
   editPersonType = activeCollection === 'Anime' ? 'character' : 'actress';
@@ -942,6 +974,7 @@ function openModal(editId = null) {
     document.getElementById('tagsInput').value = activeCollection === 'JAV'
       ? (entry.tags || '')
       : (entry.genre || entry.tags || '');
+    document.getElementById('charactersInput').value = activeCollection === 'Anime' ? (entry.characters || '') : '';
     document.getElementById('entryPhotoBackgroundInput').checked = Boolean(entry.photoBackground);
     document.getElementById('entryPhotoBackgroundInput').disabled =
       activeCollection === 'JAV' || !entry.photo;
@@ -963,6 +996,7 @@ function openModal(editId = null) {
     document.getElementById('categoryInput').value = '';
     document.getElementById('actressInput').value = '';
     document.getElementById('tagsInput').value = '';
+    document.getElementById('charactersInput').value = '';
     syncEntryColorControls();
   }
   updateCollectionFields();
@@ -1016,6 +1050,9 @@ async function saveEntry() {
   } else {
     entry.publisher = document.getElementById('actressInput').value.trim();
     entry.genre = document.getElementById('tagsInput').value.trim();
+    if (activeCollection === 'Anime') {
+      entry.characters = document.getElementById('charactersInput').value.trim();
+    }
   }
 
   try {

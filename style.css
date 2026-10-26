@@ -292,6 +292,15 @@ body.card-gradient .card {
   padding-right: 112px;
 }
 
+.person-card-link {
+  cursor: pointer;
+}
+
+.person-card-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
 .actress-card-background {
   background-position: center;
   background-size: cover;
