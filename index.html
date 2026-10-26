@@ -66,6 +66,22 @@
       <input type="text" id="categoryInput" placeholder="Kategorie" />
       <input type="text" id="actressInput" placeholder="Actress (optional)" />
       <input type="text" id="tagsInput" placeholder="Tags (mit Komma trennen)" />
+      <div id="entryPhotoFields" class="entry-photo-fields hidden">
+        <label class="form-field" for="entryPhotoInput">Foto (optional)
+          <input type="file" id="entryPhotoInput" accept="image/*" />
+        </label>
+        <div id="entryPhotoPreview" class="actress-photo-preview hidden">
+          <img id="entryPreviewImage" alt="Vorschau des Kartenfotos" />
+        </div>
+        <label class="toggle-field" for="entryPhotoBackgroundInput">
+          <input type="checkbox" id="entryPhotoBackgroundInput" />
+          Foto verschwommen als Kartenhintergrund anzeigen
+        </label>
+        <label id="removeEntryPhotoField" class="toggle-field hidden" for="removeEntryPhotoInput">
+          <input type="checkbox" id="removeEntryPhotoInput" />
+          Vorhandenes Foto entfernen
+        </label>
+      </div>
       <details id="entryColorSettings" class="settings-group entry-colors color-settings">
         <summary>Kartenfarben anpassen</summary>
         <label class="toggle-field color-enable-option" for="entryColorsEnabled">
@@ -122,6 +138,10 @@
       <div id="actressPhotoPreview" class="actress-photo-preview hidden">
         <img id="actressPreviewImage" alt="Vorschau des Actress-Fotos" />
       </div>
+      <label class="toggle-field photo-background-option" for="personPhotoBackgroundInput">
+        <input type="checkbox" id="personPhotoBackgroundInput" />
+        Foto verschwommen als Kartenhintergrund anzeigen
+      </label>
       <label id="removeActressPhotoField" class="toggle-field hidden" for="removeActressPhotoInput">
         <input type="checkbox" id="removeActressPhotoInput" />
         Vorhandenes Foto entfernen
@@ -251,6 +271,23 @@
       <div class="settings-actions">
         <button id="resetThemeBtn" class="secondary-btn" type="button">Standardfarben wiederherstellen</button>
       </div>
+
+      <fieldset class="settings-group backup-group">
+        <legend>Daten sichern und übertragen</legend>
+        <p class="settings-description">Exportiert Einträge, Farben und Actress-/Charakterfotos in eine JSON-Datei.</p>
+        <button id="exportDataBtn" class="primary-btn backup-button" type="button">Daten exportieren</button>
+        <label class="form-field" for="importModeSelect">Importverhalten
+          <select id="importModeSelect">
+            <option value="merge">Ergänzen und Einträge mit gleicher ID aktualisieren</option>
+            <option value="replace">Alle vorhandenen App-Daten ersetzen</option>
+          </select>
+        </label>
+        <label class="form-field" for="importFileInput">Sicherungsdatei auswählen
+          <input type="file" id="importFileInput" accept=".json,application/json" />
+        </label>
+        <button id="importDataBtn" class="secondary-btn backup-button" type="button">Sicherung importieren</button>
+        <p id="backupStatus" class="backup-status" role="status" aria-live="polite"></p>
+      </fieldset>
     </section>
   </div>
 

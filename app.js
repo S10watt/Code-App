@@ -5,6 +5,7 @@ let editIndex = null;
 let editActressId = null;
 let editPersonType = 'actress';
 let actressPhotoUrl = null;
+let entryPhotoUrl = null;
 let activeCardPhotoUrls = [];
 let actressRenderVersion = 0;
 let activeView = 'codes';
@@ -55,6 +56,7 @@ const addActressBtn = document.getElementById('addActressBtn');
 const addCharacterBtn = document.getElementById('addCharacterBtn');
 const actressModal = document.getElementById('actressModal');
 const actressPhotoInput = document.getElementById('actressPhotoInput');
+const entryPhotoInput = document.getElementById('entryPhotoInput');
 
 function saveActresses() {
   localStorage.setItem('javActresses', JSON.stringify(actresses));
@@ -66,6 +68,10 @@ function saveAnimeCharacters() {
 
 function personPhotoKey(type, id) {
   return type === 'character' ? `anime-character-${id}` : id;
+}
+
+function entryPhotoKey(id) {
+  return `entry-photo-${id}`;
 }
 
 function openPhotoDatabase() {
@@ -134,6 +140,264 @@ function deleteActressPhoto(id) {
       reject(transaction.error || new Error('Das Löschen des Fotos wurde abgebrochen.'));
     };
   }));
+}
+
+function readPhotoDatabaseEntries() {
+  return openPhotoDatabase().then(db => new Promise((resolve, reject) => {
+    const transaction = db.transaction('photos', 'readonly');
+    const request = transaction.objectStore('photos').getAll();
+    const keyRequest = transaction.objectStore('photos').getAllKeys();
+    transaction.oncomplete = () => {
+      db.close();
+      resolve(keyRequest.result.map((key, index) => [key, request.result[index]]));
+    };
+    transaction.onerror = () => {
+      db.close();
+      reject(transaction.error || new Error('Die gespeicherten Fotos konnten nicht gelesen werden.'));
+    };
+  }));
+}
+
+function writePhotoDatabaseEntries(photoEntries, replace) {
+  return openPhotoDatabase().then(db => new Promise((resolve, reject) => {
+    const transaction = db.transaction('photos', 'readwrite');
+    const store = transaction.objectStore('photos');
+    if (replace) store.clear();
+    photoEntries.forEach(([key, value]) => {
+      if (value === null) store.delete(key);
+      else store.put(value, key);
+    });
+    transaction.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    transaction.onerror = () => {
+      db.close();
+      reject(transaction.error || new Error('Die Fotos konnten nicht aktualisiert werden.'));
+    };
+    transaction.onabort = () => {
+      db.close();
+      reject(transaction.error || new Error('Die Fotoübertragung wurde abgebrochen.'));
+    };
+  }));
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('Ein Foto konnte nicht für den Export gelesen werden.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function dataUrlToBlob(dataUrl) {
+  const match = /^data:(image\/[a-z0-9.+-]+);base64,([a-z0-9+/]+=*)$/i.exec(dataUrl);
+  if (!match) throw new Error('Die Sicherungsdatei enthält ein ungültiges Foto.');
+  const binary = atob(match[2]);
+  const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+  return new Blob([bytes], { type: match[1] });
+}
+
+function validateBackup(backup) {
+  if (!backup || backup.format !== 'jav-codes-backup' || backup.version !== 1) {
+    throw new Error('Die Datei ist keine unterstützte Sicherung dieser App.');
+  }
+  if (!Array.isArray(backup.entries) || !Array.isArray(backup.actresses) ||
+      !Array.isArray(backup.animeCharacters) || !backup.theme || typeof backup.theme !== 'object' ||
+      Array.isArray(backup.theme) || !Array.isArray(backup.photos)) {
+    throw new Error('Die Sicherungsdatei ist unvollständig oder beschädigt.');
+  }
+  const validRecords = records => records.every(record =>
+    record && typeof record === 'object' && (typeof record.id === 'string' || typeof record.id === 'number')
+  );
+  if (!validRecords(backup.entries) || !backup.entries.every(record => typeof record.code === 'string') ||
+      !validRecords(backup.actresses) || !backup.actresses.every(record => typeof record.name === 'string') ||
+      !validRecords(backup.animeCharacters) ||
+      !backup.animeCharacters.every(record => typeof record.name === 'string')) {
+    throw new Error('Die Sicherungsdatei enthält ungültige Einträge.');
+  }
+  if (backup.selectedCollection && !collections.includes(backup.selectedCollection)) {
+    throw new Error('Die Sicherungsdatei enthält einen unbekannten Bereich.');
+  }
+
+  const photoEntries = backup.photos.map(photo => {
+    if (!photo || (typeof photo.key !== 'string' && typeof photo.key !== 'number') ||
+        typeof photo.data !== 'string') {
+      throw new Error('Die Sicherungsdatei enthält einen ungültigen Fotoeintrag.');
+    }
+    return [photo.key, dataUrlToBlob(photo.data)];
+  });
+  const photoKeys = new Set(photoEntries.map(([key]) => key));
+  const entriesWithPhotos = backup.entries.map(entry => [entryPhotoKey(entry.id), entry]);
+  const peopleWithPhotos = [
+    ...backup.actresses.map(person => [personPhotoKey('actress', person.id), person]),
+    ...backup.animeCharacters.map(person => [personPhotoKey('character', person.id), person])
+  ];
+  if ([...entriesWithPhotos, ...peopleWithPhotos].some(([key, person]) => person.photo && !photoKeys.has(key))) {
+    throw new Error('Mindestens ein zugehöriges Foto fehlt in der Sicherungsdatei.');
+  }
+  return photoEntries;
+}
+
+function mergeById(currentRecords, importedRecords) {
+  const merged = new Map(currentRecords.map(record => [String(record.id), record]));
+  importedRecords.forEach(record => merged.set(String(record.id), record));
+  return [...merged.values()];
+}
+
+function setBackupStatus(message, isError = false) {
+  const status = document.getElementById('backupStatus');
+  status.textContent = message;
+  status.classList.toggle('error', isError);
+}
+
+function createBackupDownload(backup, fileName) {
+  const file = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function getExportFileName(value) {
+  const safeName = String(value)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9_-]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+  return safeName || 'karte';
+}
+
+async function exportSingleCard(type, id) {
+  const recordGroups = {
+    entry: { records: entries, label: 'karte' },
+    actress: { records: actresses, label: 'actress' },
+    character: { records: animeCharacters, label: 'charakter' }
+  };
+  const group = recordGroups[type];
+  if (!group) throw new Error('Dieser Kartentyp kann nicht exportiert werden.');
+
+  const record = group.records.find(item => String(item.id) === String(id));
+  if (!record) throw new Error('Die Karte wurde nicht gefunden.');
+
+  const photos = [];
+  if (record.photo) {
+    const key = type === 'entry' ? entryPhotoKey(record.id) : personPhotoKey(type, record.id);
+    const photo = await loadActressPhoto(key);
+    if (!(photo instanceof Blob) || !photo.type.startsWith('image/')) {
+      throw new Error('Das zugehörige Foto konnte nicht gefunden oder gelesen werden.');
+    }
+    photos.push({ key, data: await blobToDataUrl(photo) });
+  }
+
+  createBackupDownload({
+    format: 'jav-codes-backup',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    entries: type === 'entry' ? [record] : [],
+    actresses: type === 'actress' ? [record] : [],
+    animeCharacters: type === 'character' ? [record] : [],
+    theme: {},
+    photos
+  }, `jav-codes-${group.label}-${getExportFileName(record.code || record.name)}.json`);
+}
+
+async function exportBackup() {
+  setBackupStatus('Sicherung wird erstellt …');
+  try {
+    const photoBlobs = await readPhotoDatabaseEntries();
+    const photoData = [];
+    for (const [key, blob] of photoBlobs) {
+      if (blob instanceof Blob && blob.type.startsWith('image/')) {
+        photoData.push({ key, data: await blobToDataUrl(blob) });
+      }
+    }
+    const backup = {
+      format: 'jav-codes-backup',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      entries,
+      actresses,
+      animeCharacters,
+      theme,
+      selectedCollection: activeCollection,
+      photos: photoData
+    };
+    createBackupDownload(backup, `jav-codes-sicherung-${new Date().toISOString().slice(0, 10)}.json`);
+    setBackupStatus(`Export abgeschlossen: ${entries.length} Karten, ${actresses.length} Actress, ${animeCharacters.length} Charaktere und ${photoData.length} Fotos.`);
+  } catch (error) {
+    console.error(error);
+    setBackupStatus(`Export fehlgeschlagen: ${error.message}`, true);
+  }
+}
+
+async function importBackup() {
+  const file = document.getElementById('importFileInput').files[0];
+  if (!file) {
+    setBackupStatus('Bitte wähle zuerst eine JSON-Sicherungsdatei aus.', true);
+    return;
+  }
+  setBackupStatus('Sicherung wird geprüft …');
+
+  try {
+    const backup = JSON.parse(await file.text());
+    const importedPhotoEntries = validateBackup(backup);
+    const replace = document.getElementById('importModeSelect').value === 'replace';
+    if (replace && !confirm('Alle vorhandenen Karten, Personen, Fotos und Farbeinstellungen durch die Sicherung ersetzen?')) {
+      setBackupStatus('Import abgebrochen.');
+      return;
+    }
+
+    const nextEntries = replace ? backup.entries : mergeById(entries, backup.entries);
+    const nextActresses = replace ? backup.actresses : mergeById(actresses, backup.actresses);
+    const nextCharacters = replace ? backup.animeCharacters : mergeById(animeCharacters, backup.animeCharacters);
+    const nextTheme = replace ? { ...defaultTheme, ...backup.theme } : { ...theme, ...backup.theme };
+    const nextCollection = backup.selectedCollection || activeCollection;
+    const storageKeys = ['javEntries', 'javActresses', 'animeCharacters', 'javTheme', 'javSelectedCollection'];
+    const previousStorage = Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)]));
+    const importedPhotoMap = new Map(importedPhotoEntries);
+    const importedRecords = [
+      ...backup.entries.map(entry => [entryPhotoKey(entry.id), entry]),
+      ...backup.actresses.map(person => [personPhotoKey('actress', person.id), person]),
+      ...backup.animeCharacters.map(person => [personPhotoKey('character', person.id), person])
+    ];
+    const photoUpdates = replace
+      ? importedPhotoEntries
+      : importedRecords.map(([key]) => [key, importedPhotoMap.get(key) || null]);
+
+    try {
+      localStorage.setItem('javEntries', JSON.stringify(nextEntries));
+      localStorage.setItem('javActresses', JSON.stringify(nextActresses));
+      localStorage.setItem('animeCharacters', JSON.stringify(nextCharacters));
+      localStorage.setItem('javTheme', JSON.stringify(nextTheme));
+      localStorage.setItem('javSelectedCollection', nextCollection);
+      await writePhotoDatabaseEntries(photoUpdates, replace);
+    } catch (error) {
+      storageKeys.forEach(key => {
+        if (previousStorage[key] === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, previousStorage[key]);
+      });
+      throw error;
+    }
+
+    entries = nextEntries;
+    actresses = nextActresses;
+    animeCharacters = nextCharacters;
+    Object.assign(theme, nextTheme);
+    activeCollection = nextCollection;
+    document.getElementById('importFileInput').value = '';
+    syncThemeControls();
+    applyTheme();
+    setCollection(activeCollection);
+    setBackupStatus(`Import abgeschlossen: ${entries.length} Karten, ${actresses.length} Actress und ${animeCharacters.length} Charaktere.`);
+  } catch (error) {
+    console.error(error);
+    setBackupStatus(`Import fehlgeschlagen: ${error.message}`, true);
+  }
 }
 
 function saveToStorage() {
@@ -233,7 +497,7 @@ function getCardStyleAttribute(entry) {
 }
 
 function escapeHtml(value) {
-  return String(value || '').replace(/[&<>"']/g, character => ({
+  return String(value === null || value === undefined ? '' : value).replace(/[&<>"']/g, character => ({
     '&': '&amp;',
     '<': '&lt;',
     '>': '&gt;',
@@ -364,14 +628,18 @@ function renderPeople(people, type) {
   listEl.innerHTML = filtered.length === 0
     ? `<p class="empty-list">Keine ${type === 'character' ? 'Charaktere' : 'Actress'} gefunden</p>`
     : filtered.map(person => `
-      <article class="card actress-card"${getCardStyleAttribute(person)}>
-        <div class="actress-photo-placeholder" data-person-photo="${person.id}" aria-hidden="true">♡</div>
+      <article class="card actress-card${person.photoBackground && person.photo ? ' has-photo-background' : ''}" data-person-id="${escapeHtml(person.id)}"${getCardStyleAttribute(person)}>
+        <div class="actress-card-background" data-person-background="${escapeHtml(person.id)}" aria-hidden="true"></div>
+        <div class="actress-photo-placeholder${person.photoBackground && person.photo ? ' hidden' : ''}" data-person-photo="${escapeHtml(person.id)}" aria-hidden="true">♡</div>
         <div class="actress-card-content">
           <div class="code">${escapeHtml(person.name)}</div>
           ${type === 'character' && person.series ? `<div class="actress-detail">Serie: ${escapeHtml(person.series)}</div>` : ''}
           ${type === 'actress' && person.height ? `<div class="actress-detail">Körpergröße: ${escapeHtml(person.height)} cm</div>` : ''}
           ${type === 'actress' && person.cupSize ? `<div class="actress-detail">Körbchengröße: ${escapeHtml(person.cupSize)}</div>` : ''}
         </div>
+        <button class="export-btn" type="button" data-export-type="${type}" data-export-id="${escapeHtml(person.id)}" aria-label="${type === 'character' ? 'Charakter' : 'Actress'} ${escapeHtml(person.name)} exportieren" title="Karte exportieren">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 15V3m0 0L7 8m5-5 5 5M4 14v6h16v-6" /></svg>
+        </button>
         <button class="edit-btn" type="button" aria-label="${type === 'character' ? 'Charakter' : 'Actress'} ${escapeHtml(person.name)} bearbeiten" onclick="editActress(${person.id})">✎</button>
         <button class="delete-btn" type="button" aria-label="${type === 'character' ? 'Charakter' : 'Actress'} ${escapeHtml(person.name)} löschen" onclick="deleteActress(${person.id})">×</button>
       </article>
@@ -381,10 +649,19 @@ function renderPeople(people, type) {
     if (!person.photo) return;
     loadActressPhoto(personPhotoKey(type, person.id)).then(blob => {
       if (!blob || renderVersion !== actressRenderVersion) return;
-      const placeholder = listEl.querySelector(`[data-person-photo="${person.id}"]`);
-      if (!placeholder) return;
+      const card = [...listEl.querySelectorAll('.actress-card')]
+        .find(item => item.dataset.personId === String(person.id));
+      if (!card) return;
       const imageUrl = URL.createObjectURL(blob);
       activeCardPhotoUrls.push(imageUrl);
+      if (person.photoBackground) {
+        const background = card.querySelector('.actress-card-background');
+        if (!background) return;
+        background.style.backgroundImage = `url("${imageUrl}")`;
+        return;
+      }
+      const placeholder = card.querySelector('.actress-photo-placeholder');
+      if (!placeholder) return;
       const image = document.createElement('img');
       image.src = imageUrl;
       image.alt = `Foto: ${person.name}`;
@@ -408,6 +685,7 @@ function render() {
     return;
   }
   clearActressPhotoUrls();
+  const renderVersion = ++actressRenderVersion;
   let filtered = entries.filter(entry => (entry.collection || 'JAV') === activeCollection);
 
   const query = searchInput.value.toLowerCase().trim();
@@ -434,8 +712,13 @@ function render() {
       const isJav = (entry.collection || 'JAV') === 'JAV';
       const person = isJav ? entry.actress : (entry.publisher || entry.actress);
       const details = isJav ? entry.tags : (entry.genre || entry.tags);
+      const showPhotoBackground = !isJav && entry.photo && entry.photoBackground;
       return `
-        <div class="card"${getCardStyleAttribute(entry)}>
+        <div class="card${showPhotoBackground ? ' has-photo-background' : ''}" data-entry-id="${escapeHtml(entry.id)}"${getCardStyleAttribute(entry)}>
+          ${showPhotoBackground ? '<div class="entry-card-background" aria-hidden="true"></div>' : ''}
+          <button class="export-btn" type="button" data-export-type="entry" data-export-id="${escapeHtml(entry.id)}" aria-label="Eintrag ${escapeHtml(entry.code)} exportieren" title="Karte exportieren">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 15V3m0 0L7 8m5-5 5 5M4 14v6h16v-6" /></svg>
+          </button>
           <button class="edit-btn" type="button" aria-label="Eintrag ${escapeHtml(entry.code)} bearbeiten" onclick="editEntry(${entry.id})">✎</button>
           <button class="delete-btn" type="button" aria-label="Eintrag ${escapeHtml(entry.code)} löschen" onclick="deleteEntry(${entry.id})">×</button>
           <div class="code">${escapeHtml(entry.code)}</div>
@@ -445,7 +728,35 @@ function render() {
         </div>
       `;
     }).join('');
+
+  filtered.forEach(entry => {
+    if ((entry.collection || 'JAV') === 'JAV' || !entry.photo || !entry.photoBackground) return;
+    loadActressPhoto(entryPhotoKey(entry.id)).then(blob => {
+      if (!blob || renderVersion !== actressRenderVersion) return;
+      const card = [...listEl.querySelectorAll('.card[data-entry-id]')]
+        .find(item => item.dataset.entryId === String(entry.id));
+      const background = card && card.querySelector('.entry-card-background');
+      if (!background) return;
+      const imageUrl = URL.createObjectURL(blob);
+      activeCardPhotoUrls.push(imageUrl);
+      background.style.backgroundImage = `url("${imageUrl}")`;
+    }).catch(error => {
+      if (renderVersion === actressRenderVersion) {
+        console.error(error);
+        listEl.insertAdjacentHTML('afterbegin', '<p class="photo-error">Ein Kartenfoto konnte nicht geladen werden.</p>');
+      }
+    });
+  });
 }
+
+listEl.addEventListener('click', event => {
+  const button = event.target.closest('.export-btn');
+  if (!button) return;
+  exportSingleCard(button.dataset.exportType, button.dataset.exportId).catch(error => {
+    console.error(error);
+    alert(`Kartenexport fehlgeschlagen: ${error.message}`);
+  });
+});
 
 function openActressModal(editId = null) {
   editPersonType = activeCollection === 'Anime' ? 'character' : 'actress';
@@ -466,6 +777,7 @@ function openActressModal(editId = null) {
   document.getElementById('actressHeightInput').value = person ? person.height || '' : '';
   document.getElementById('actressCupSizeInput').value = person ? person.cupSize || '' : '';
   document.getElementById('actressNameInput').value = person ? person.name : '';
+  document.getElementById('personPhotoBackgroundInput').checked = Boolean(person && person.photoBackground);
   actressPhotoInput.value = '';
   document.getElementById('removeActressPhotoInput').checked = false;
   document.getElementById('removeActressPhotoField').classList.toggle('hidden', !person || !person.photo);
@@ -521,6 +833,7 @@ async function saveActress() {
     id,
     name,
     photo: previousPerson ? previousPerson.photo : false,
+    photoBackground: document.getElementById('personPhotoBackgroundInput').checked,
     cardStyle: document.getElementById('actressColorsEnabled').checked ? {
       enabled: true,
       gradient: document.getElementById('actressCardGradient').checked,
@@ -538,6 +851,7 @@ async function saveActress() {
     person.series = document.getElementById('characterSeriesInput').value.trim();
   }
   const removePhoto = document.getElementById('removeActressPhotoInput').checked;
+  if (removePhoto) person.photoBackground = false;
 
   try {
     if (photo) {
@@ -603,6 +917,20 @@ function openModal(editId = null) {
   editIndex = editId;
   modal.classList.remove('hidden');
   document.getElementById('modalTitle').textContent = editId !== null ? 'Bearbeiten' : 'Neuer Eintrag';
+  const photoFields = document.getElementById('entryPhotoFields');
+  const removePhotoField = document.getElementById('removeEntryPhotoField');
+  const photoPreview = document.getElementById('entryPhotoPreview');
+  const previewImage = document.getElementById('entryPreviewImage');
+  photoFields.classList.toggle('hidden', activeCollection === 'JAV');
+  entryPhotoInput.value = '';
+  document.getElementById('removeEntryPhotoInput').checked = false;
+  document.getElementById('entryPhotoBackgroundInput').checked = false;
+  removePhotoField.classList.add('hidden');
+  document.getElementById('entryPhotoBackgroundInput').disabled = true;
+  photoPreview.classList.add('hidden');
+  previewImage.removeAttribute('src');
+  if (entryPhotoUrl) URL.revokeObjectURL(entryPhotoUrl);
+  entryPhotoUrl = null;
 
   if (editId !== null) {
     const entry = entries.find(e => e.id === editId);
@@ -614,7 +942,22 @@ function openModal(editId = null) {
     document.getElementById('tagsInput').value = activeCollection === 'JAV'
       ? (entry.tags || '')
       : (entry.genre || entry.tags || '');
+    document.getElementById('entryPhotoBackgroundInput').checked = Boolean(entry.photoBackground);
+    document.getElementById('entryPhotoBackgroundInput').disabled =
+      activeCollection === 'JAV' || !entry.photo;
+    removePhotoField.classList.toggle('hidden', activeCollection === 'JAV' || !entry.photo);
     syncEntryColorControls(entry.cardStyle);
+    if (activeCollection !== 'JAV' && entry.photo) {
+      loadActressPhoto(entryPhotoKey(entry.id)).then(blob => {
+        if (!blob || editIndex !== entry.id || activeCollection === 'JAV') return;
+        entryPhotoUrl = URL.createObjectURL(blob);
+        previewImage.src = entryPhotoUrl;
+        photoPreview.classList.remove('hidden');
+      }).catch(error => {
+        console.error(error);
+        alert(`Das Kartenfoto konnte nicht geladen werden: ${error.message}`);
+      });
+    }
   } else {
     document.getElementById('codeInput').value = '';
     document.getElementById('categoryInput').value = '';
@@ -628,19 +971,33 @@ function openModal(editId = null) {
 function closeModal() {
   modal.classList.add('hidden');
   editIndex = null;
+  document.getElementById('entryPhotoInput').value = '';
+  if (entryPhotoUrl) URL.revokeObjectURL(entryPhotoUrl);
+  entryPhotoUrl = null;
 }
 
-function saveEntry() {
+async function saveEntry() {
   const code = document.getElementById('codeInput').value.trim();
   if (!code) return alert(activeCollection === 'JAV' ? 'Code ist Pflicht!' : 'Titel ist Pflicht!');
 
+  const previousEntry = editIndex === null ? null : entries.find(item => item.id === editIndex);
+  const id = editIndex !== null ? editIndex : Date.now();
+  const selectedPhoto = document.getElementById('entryPhotoInput').files[0];
+  const removePhoto = document.getElementById('removeEntryPhotoInput').checked;
+  if (selectedPhoto && !selectedPhoto.type.startsWith('image/')) {
+    alert('Bitte wähle eine Bilddatei aus.');
+    return;
+  }
   const entry = {
-    id: editIndex !== null ? editIndex : Date.now(),
+    id,
     code,
-    collection: editIndex !== null
-      ? (entries.find(e => e.id === editIndex).collection || 'JAV')
-      : activeCollection,
+    collection: previousEntry ? (previousEntry.collection || 'JAV') : activeCollection,
     category: document.getElementById('categoryInput').value.trim(),
+    photo: activeCollection !== 'JAV' && selectedPhoto
+      ? true
+      : activeCollection !== 'JAV' && !removePhoto && Boolean(previousEntry && previousEntry.photo),
+    photoBackground: activeCollection !== 'JAV' && document.getElementById('entryPhotoBackgroundInput').checked &&
+      (Boolean(selectedPhoto) || Boolean(previousEntry && previousEntry.photo && !removePhoto)),
     cardStyle: document.getElementById('entryColorsEnabled').checked ? {
       enabled: true,
       gradient: document.getElementById('entryCardGradient').checked,
@@ -661,20 +1018,38 @@ function saveEntry() {
     entry.genre = document.getElementById('tagsInput').value.trim();
   }
 
-  if (editIndex !== null) {
-    const idx = entries.findIndex(e => e.id === editIndex);
-    entries[idx] = entry;
-  } else {
-    entries.unshift(entry);
-  }
+  try {
+    if (selectedPhoto) {
+      await storeActressPhoto(entryPhotoKey(id), selectedPhoto);
+    } else if (removePhoto && previousEntry && previousEntry.photo) {
+      await deleteActressPhoto(entryPhotoKey(id));
+    }
+    if (editIndex !== null) {
+      const idx = entries.findIndex(e => e.id === editIndex);
+      entries[idx] = entry;
+    } else {
+      entries.unshift(entry);
+    }
 
-  saveToStorage();
-  closeModal();
-  render();
+    saveToStorage();
+    closeModal();
+    render();
+  } catch (error) {
+    console.error(error);
+    alert(`Eintrag konnte nicht gespeichert werden: ${error.message}`);
+  }
 }
 
-function deleteEntry(id) {
+async function deleteEntry(id) {
   if (!confirm('Wirklich löschen?')) return;
+  const entry = entries.find(item => item.id === id);
+  try {
+    if (entry && entry.photo) await deleteActressPhoto(entryPhotoKey(id));
+  } catch (error) {
+    console.error(error);
+    alert(`Eintrag konnte nicht gelöscht werden: ${error.message}`);
+    return;
+  }
   entries = entries.filter(e => e.id !== id);
   saveToStorage();
   render();
@@ -686,6 +1061,37 @@ addActressBtn.addEventListener('click', () => openActressModal());
 addCharacterBtn.addEventListener('click', () => openActressModal());
 document.getElementById('saveActressBtn').addEventListener('click', saveActress);
 document.getElementById('cancelActressBtn').addEventListener('click', closeActressModal);
+entryPhotoInput.addEventListener('change', () => {
+  const file = entryPhotoInput.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    entryPhotoInput.value = '';
+    alert('Bitte wähle eine Bilddatei aus.');
+    return;
+  }
+  if (entryPhotoUrl) URL.revokeObjectURL(entryPhotoUrl);
+  entryPhotoUrl = URL.createObjectURL(file);
+  document.getElementById('entryPreviewImage').src = entryPhotoUrl;
+  document.getElementById('entryPhotoPreview').classList.remove('hidden');
+  document.getElementById('removeEntryPhotoInput').checked = false;
+  document.getElementById('entryPhotoBackgroundInput').checked = true;
+  document.getElementById('entryPhotoBackgroundInput').disabled = false;
+});
+document.getElementById('removeEntryPhotoInput').addEventListener('change', event => {
+  if (entryPhotoInput.files.length) return;
+  const preview = document.getElementById('entryPhotoPreview');
+  const previewImage = document.getElementById('entryPreviewImage');
+  const backgroundInput = document.getElementById('entryPhotoBackgroundInput');
+  backgroundInput.disabled = event.target.checked;
+  if (event.target.checked) {
+    backgroundInput.checked = false;
+    previewImage.removeAttribute('src');
+    preview.classList.add('hidden');
+  } else if (entryPhotoUrl) {
+    previewImage.src = entryPhotoUrl;
+    preview.classList.remove('hidden');
+  }
+});
 actressPhotoInput.addEventListener('change', () => {
   const file = actressPhotoInput.files[0];
   if (!file) return;
@@ -740,6 +1146,8 @@ settingsBtn.addEventListener('click', () => {
 document.getElementById('closeSettingsBtn').addEventListener('click', () => {
   settingsModal.classList.add('hidden');
 });
+document.getElementById('exportDataBtn').addEventListener('click', exportBackup);
+document.getElementById('importDataBtn').addEventListener('click', importBackup);
 settingsModal.addEventListener('click', event => {
   if (event.target === settingsModal) settingsModal.classList.add('hidden');
 });

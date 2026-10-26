@@ -208,6 +208,48 @@ body.card-gradient .card {
   color: var(--entry-card-text, var(--card-text));
 }
 
+.card:not(.actress-card) {
+  padding-right: 112px;
+}
+
+.card.has-photo-background:not(.actress-card) {
+  overflow: hidden;
+}
+
+.entry-card-background {
+  background-position: center;
+  background-size: cover;
+  filter: blur(10px);
+  inset: -10px;
+  opacity: 0.55;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.card.has-photo-background:not(.actress-card)::after {
+  background: rgba(0, 0, 0, 0.25);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.card.has-photo-background:not(.actress-card) > .code,
+.card.has-photo-background:not(.actress-card) > .category,
+.card.has-photo-background:not(.actress-card) > .actress,
+.card.has-photo-background:not(.actress-card) > .tags {
+  position: relative;
+  z-index: 1;
+}
+
+.card.has-photo-background:not(.actress-card) > .export-btn,
+.card.has-photo-background:not(.actress-card) > .edit-btn,
+.card.has-photo-background:not(.actress-card) > .delete-btn {
+  z-index: 2;
+}
+
 .card .code {
   font-size: 1.2rem;
   font-weight: 700;
@@ -246,7 +288,28 @@ body.card-gradient .card {
   display: flex;
   gap: 14px;
   min-height: 112px;
-  padding-right: 82px;
+  overflow: hidden;
+  padding-right: 112px;
+}
+
+.actress-card-background {
+  background-position: center;
+  background-size: cover;
+  filter: blur(10px);
+  inset: -10px;
+  opacity: 0.55;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.actress-card.has-photo-background::after {
+  background: rgba(0, 0, 0, 0.25);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
 }
 
 .actress-card > img,
@@ -261,6 +324,19 @@ body.card-gradient .card {
   justify-content: center;
   object-fit: cover;
   width: 76px;
+}
+
+.actress-card.has-photo-background > img,
+.actress-card.has-photo-background > .actress-photo-placeholder,
+.actress-card.has-photo-background > .actress-card-content {
+  position: relative;
+  z-index: 1;
+}
+
+.actress-card.has-photo-background > .export-btn,
+.actress-card.has-photo-background > .edit-btn,
+.actress-card.has-photo-background > .delete-btn {
+  z-index: 2;
 }
 
 .actress-photo-placeholder {
@@ -287,6 +363,7 @@ body.card-gradient .card {
 }
 
 .card .edit-btn,
+.card .export-btn,
 .card .delete-btn {
   position: absolute;
   top: 12px;
@@ -294,6 +371,26 @@ body.card-gradient .card {
   border: none;
   font-size: 1.2rem;
   cursor: pointer;
+}
+
+.card .export-btn {
+  align-items: center;
+  color: var(--entry-card-accent, var(--card-accent));
+  display: flex;
+  height: 26px;
+  justify-content: center;
+  right: 72px;
+  width: 26px;
+}
+
+.card .export-btn svg {
+  fill: none;
+  height: 18px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  width: 18px;
 }
 
 .card .delete-btn {
@@ -307,11 +404,13 @@ body.card-gradient .card {
 }
 
 .card .edit-btn:hover,
+.card .export-btn:hover,
 .card .delete-btn:hover {
   filter: brightness(1.25);
 }
 
 .card .edit-btn:focus-visible,
+.card .export-btn:focus-visible,
 .card .delete-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -530,6 +629,57 @@ body.card-gradient .card {
 
 .settings-actions button {
   width: 100%;
+}
+
+.backup-group {
+  margin-top: 18px;
+}
+
+.backup-group .settings-description {
+  margin: 4px 0 12px;
+}
+
+.backup-group .form-field {
+  margin: 14px 0;
+}
+
+.backup-group select {
+  background: var(--page-bg);
+  border: 1px solid var(--muted);
+  border-radius: 10px;
+  color: var(--text);
+  display: block;
+  font-size: 0.9rem;
+  margin-top: 6px;
+  padding: 12px;
+  width: 100%;
+}
+
+.backup-group input[type="file"] {
+  background: var(--page-bg);
+  border: 1px solid var(--muted);
+  border-radius: 10px;
+  color: var(--text);
+  display: block;
+  font-size: 0.85rem;
+  margin-top: 6px;
+  padding: 10px;
+  width: 100%;
+}
+
+.backup-button {
+  width: 100%;
+}
+
+.backup-status {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin-top: 12px;
+}
+
+.backup-status.error {
+  color: var(--danger);
 }
 
 .modal-buttons {
