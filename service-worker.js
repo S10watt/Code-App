@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jav-codes-v18';
+const CACHE_NAME = 'jav-codes-v20';
 const urlsToCache = [
   './',
   './index.html',

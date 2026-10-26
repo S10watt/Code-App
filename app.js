@@ -44,6 +44,7 @@ Object.keys(defaultTheme).forEach(key => {
 const listEl = document.getElementById('list');
 const searchInput = document.getElementById('searchInput');
 const sortSelect = document.getElementById('sortSelect');
+const favoritesOnlyInput = document.getElementById('favoritesOnlyInput');
 const modal = document.getElementById('modal');
 const menuBtn = document.getElementById('menuBtn');
 const collectionMenu = document.getElementById('collectionMenu');
@@ -608,10 +609,11 @@ function renderPeople(people, type) {
   clearActressPhotoUrls();
   const renderVersion = ++actressRenderVersion;
   const query = searchInput.value.toLowerCase().trim();
-  const filtered = people.filter(person =>
-    [person.name, person.height, person.cupSize, person.series]
-      .some(value => String(value || '').toLowerCase().includes(query))
-  );
+  const filtered = people.filter(person => {
+    if (favoritesOnlyInput.checked && !person.favorite) return false;
+    return [person.name, person.height, person.cupSize, person.series]
+      .some(value => String(value || '').toLowerCase().includes(query));
+  });
   const [sortField, sortDirection] = {
     'actress-height-asc': ['height', 1],
     'actress-height-desc': ['height', -1],
@@ -643,6 +645,7 @@ function renderPeople(people, type) {
           ${type === 'actress' && person.height ? `<div class="actress-detail">Körpergröße: ${escapeHtml(person.height)} cm</div>` : ''}
           ${type === 'actress' && person.cupSize ? `<div class="actress-detail">Körbchengröße: ${escapeHtml(person.cupSize)}</div>` : ''}
         </div>
+        <button class="favorite-btn${person.favorite ? ' active' : ''}" type="button" data-favorite-type="${type}" data-favorite-id="${escapeHtml(person.id)}" aria-label="${escapeHtml(person.name)} ${person.favorite ? 'aus Favoriten entfernen' : 'zu Favoriten hinzufügen'}" aria-pressed="${Boolean(person.favorite)}" title="${person.favorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}">★</button>
         <button class="export-btn" type="button" data-export-type="${type}" data-export-id="${escapeHtml(person.id)}" aria-label="${type === 'character' ? 'Charakter' : 'Actress'} ${escapeHtml(person.name)} exportieren" title="Karte exportieren">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 15V3m0 0L7 8m5-5 5 5M4 14v6h16v-6" /></svg>
         </button>
@@ -693,6 +696,9 @@ function render() {
   clearActressPhotoUrls();
   const renderVersion = ++actressRenderVersion;
   let filtered = entries.filter(entry => (entry.collection || 'JAV') === activeCollection);
+  if (favoritesOnlyInput.checked) {
+    filtered = filtered.filter(entry => entry.favorite);
+  }
 
   const query = searchInput.value.toLowerCase().trim();
   if (query) {
@@ -723,6 +729,7 @@ function render() {
       return `
         <div class="card${showPhotoBackground ? ' has-photo-background' : ''}" data-entry-id="${escapeHtml(entry.id)}"${getCardStyleAttribute(entry)}>
           ${showPhotoBackground ? '<div class="entry-card-background" aria-hidden="true"></div>' : ''}
+          <button class="favorite-btn${entry.favorite ? ' active' : ''}" type="button" data-favorite-type="entry" data-favorite-id="${escapeHtml(entry.id)}" aria-label="${escapeHtml(entry.code)} ${entry.favorite ? 'aus Favoriten entfernen' : 'zu Favoriten hinzufügen'}" aria-pressed="${Boolean(entry.favorite)}" title="${entry.favorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}">★</button>
           <button class="export-btn" type="button" data-export-type="entry" data-export-id="${escapeHtml(entry.id)}" aria-label="Eintrag ${escapeHtml(entry.code)} exportieren" title="Karte exportieren">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 15V3m0 0L7 8m5-5 5 5M4 14v6h16v-6" /></svg>
           </button>
@@ -758,6 +765,11 @@ function render() {
 }
 
 listEl.addEventListener('click', event => {
+  const favoriteButton = event.target.closest('.favorite-btn');
+  if (favoriteButton) {
+    toggleFavorite(favoriteButton.dataset.favoriteType, favoriteButton.dataset.favoriteId);
+    return;
+  }
   const button = event.target.closest('.export-btn');
   if (button) {
     exportSingleCard(button.dataset.exportType, button.dataset.exportId).catch(error => {
@@ -770,6 +782,21 @@ listEl.addEventListener('click', event => {
   const personCard = event.target.closest('.person-card-link');
   if (personCard) showPersonEntries(personCard.dataset.personId, personCard.dataset.personType);
 });
+
+function toggleFavorite(type, id) {
+  const recordGroups = {
+    entry: { records: entries, save: saveToStorage },
+    actress: { records: actresses, save: saveActresses },
+    character: { records: animeCharacters, save: saveAnimeCharacters }
+  };
+  const group = recordGroups[type];
+  if (!group) return;
+  const record = group.records.find(item => String(item.id) === String(id));
+  if (!record) return;
+  record.favorite = !record.favorite;
+  group.save();
+  render();
+}
 
 listEl.addEventListener('keydown', event => {
   if ((event.key !== 'Enter' && event.key !== ' ') || event.target.closest('button')) return;
@@ -866,6 +893,7 @@ async function saveActress() {
     name,
     photo: previousPerson ? previousPerson.photo : false,
     photoBackground: document.getElementById('personPhotoBackgroundInput').checked,
+    favorite: Boolean(previousPerson && previousPerson.favorite),
     cardStyle: document.getElementById('actressColorsEnabled').checked ? {
       enabled: true,
       gradient: document.getElementById('actressCardGradient').checked,
@@ -1027,6 +1055,7 @@ async function saveEntry() {
     code,
     collection: previousEntry ? (previousEntry.collection || 'JAV') : activeCollection,
     category: document.getElementById('categoryInput').value.trim(),
+    favorite: Boolean(previousEntry && previousEntry.favorite),
     photo: activeCollection !== 'JAV' && selectedPhoto
       ? true
       : activeCollection !== 'JAV' && !removePhoto && Boolean(previousEntry && previousEntry.photo),
@@ -1217,6 +1246,7 @@ document.getElementById('entryColorsEnabled').addEventListener('change', event =
 saveBtn.addEventListener('click', saveEntry);
 cancelBtn.addEventListener('click', closeModal);
 searchInput.addEventListener('input', render);
+favoritesOnlyInput.addEventListener('change', render);
 sortSelect.addEventListener('change', () => {
   if (sortSelect.value.startsWith('actress-') && activeView !== 'actresses') {
     setActiveView('actresses');

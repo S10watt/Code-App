@@ -184,6 +184,21 @@ h1 {
   font-size: 0.95rem;
 }
 
+.favorites-filter {
+  align-items: center;
+  color: var(--text);
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.favorites-filter input {
+  accent-color: #a855f7;
+  height: 18px;
+  width: 18px;
+}
+
 .list {
   display: flex;
   flex-direction: column;
@@ -209,7 +224,7 @@ body.card-gradient .card {
 }
 
 .card:not(.actress-card) {
-  padding-right: 112px;
+  padding-right: 142px;
 }
 
 .card.has-photo-background:not(.actress-card) {
@@ -245,6 +260,7 @@ body.card-gradient .card {
 }
 
 .card.has-photo-background:not(.actress-card) > .export-btn,
+.card.has-photo-background:not(.actress-card) > .favorite-btn,
 .card.has-photo-background:not(.actress-card) > .edit-btn,
 .card.has-photo-background:not(.actress-card) > .delete-btn {
   z-index: 2;
@@ -289,7 +305,7 @@ body.card-gradient .card {
   gap: 14px;
   min-height: 112px;
   overflow: hidden;
-  padding-right: 112px;
+  padding-right: 142px;
 }
 
 .person-card-link {
@@ -343,6 +359,7 @@ body.card-gradient .card {
 }
 
 .actress-card.has-photo-background > .export-btn,
+.actress-card.has-photo-background > .favorite-btn,
 .actress-card.has-photo-background > .edit-btn,
 .actress-card.has-photo-background > .delete-btn {
   z-index: 2;
@@ -372,6 +389,7 @@ body.card-gradient .card {
 }
 
 .card .edit-btn,
+.card .favorite-btn,
 .card .export-btn,
 .card .delete-btn {
   position: absolute;
@@ -380,6 +398,17 @@ body.card-gradient .card {
   border: none;
   font-size: 1.2rem;
   cursor: pointer;
+}
+
+.card .favorite-btn {
+  background: none;
+  color: var(--entry-card-muted, var(--card-muted));
+  font-size: 1.25rem;
+  right: 102px;
+}
+
+.card .favorite-btn.active {
+  color: #a855f7;
 }
 
 .card .export-btn {
@@ -413,12 +442,14 @@ body.card-gradient .card {
 }
 
 .card .edit-btn:hover,
+.card .favorite-btn:hover,
 .card .export-btn:hover,
 .card .delete-btn:hover {
   filter: brightness(1.25);
 }
 
 .card .edit-btn:focus-visible,
+.card .favorite-btn:focus-visible,
 .card .export-btn:focus-visible,
 .card .delete-btn:focus-visible {
   outline: 2px solid var(--accent);
