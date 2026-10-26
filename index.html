@@ -39,20 +39,22 @@
       <input type="text" id="searchInput" placeholder="Suchen nach Code, Actress, Tags..." />
     </div>
 
-    <div id="sortBar" class="sort-bar">
-      <label>Sortieren:</label>
-      <select id="sortSelect">
-        <option value="code">Code / Titel</option>
-        <option value="category">Kategorie</option>
-        <option value="actress">Actress</option>
-        <option value="date">Neueste zuerst</option>
-        <option value="actress-name" data-actress-sort hidden>Name</option>
-        <option value="actress-height-asc" data-actress-sort hidden>Körpergröße (aufsteigend)</option>
-        <option value="actress-height-desc" data-actress-sort hidden>Körpergröße (absteigend)</option>
-        <option value="actress-cup-asc" data-actress-sort hidden>Körbchengröße (aufsteigend)</option>
-        <option value="actress-cup-desc" data-actress-sort hidden>Körbchengröße (absteigend)</option>
-        <option value="character-name" data-character-sort hidden>Name</option>
-      </select>
+    <div class="list-controls">
+      <div id="sortBar" class="sort-bar">
+        <label>Sortieren:</label>
+        <select id="sortSelect">
+          <option value="code">Code / Titel</option>
+          <option value="category">Kategorie</option>
+          <option value="actress">Actress</option>
+          <option value="date">Neueste zuerst</option>
+          <option value="actress-name" data-actress-sort hidden>Name</option>
+          <option value="actress-height-asc" data-actress-sort hidden>Körpergröße (aufsteigend)</option>
+          <option value="actress-height-desc" data-actress-sort hidden>Körpergröße (absteigend)</option>
+          <option value="actress-cup-asc" data-actress-sort hidden>Körbchengröße (aufsteigend)</option>
+          <option value="actress-cup-desc" data-actress-sort hidden>Körbchengröße (absteigend)</option>
+          <option value="character-name" data-character-sort hidden>Name</option>
+        </select>
+      </div>
       <label class="favorites-filter" for="favoritesOnlyInput">
         <input type="checkbox" id="favoritesOnlyInput" />
         Nur Favoriten

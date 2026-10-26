@@ -167,11 +167,18 @@ h1 {
   margin-bottom: 12px;
 }
 
+.list-controls {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
 .sort-bar {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 20px;
   font-size: 0.95rem;
 }
 
@@ -189,7 +196,6 @@ h1 {
   color: var(--text);
   display: inline-flex;
   gap: 6px;
-  margin-left: auto;
   white-space: nowrap;
 }
 
