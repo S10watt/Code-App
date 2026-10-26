@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jav-codes-v1';
+const CACHE_NAME = 'jav-codes-v9';
 const urlsToCache = [
   './',
   './index.html',
@@ -11,6 +11,18 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
+  );
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(cacheNames => Promise.all(
+        cacheNames
+          .filter(cacheName => cacheName !== CACHE_NAME && cacheName.startsWith('jav-codes-'))
+          .map(cacheName => caches.delete(cacheName))
+      ))
+      .then(() => self.clients.claim())
   );
 });
 

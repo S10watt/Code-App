@@ -14,21 +14,44 @@
 <body>
   <div class="app">
     <header>
-      <h1>JAV Codes</h1>
+      <div class="collection-menu">
+        <button id="menuBtn" class="menu-btn" type="button" aria-label="Bereich auswählen" aria-expanded="false" aria-controls="collectionMenu">☰</button>
+        <nav id="collectionMenu" class="collection-menu-items hidden" aria-label="Bereiche">
+          <button type="button" class="collection-option" data-collection="JAV">JAV</button>
+          <button type="button" class="collection-option" data-collection="Hentai">Hentai</button>
+          <button type="button" class="collection-option" data-collection="Anime">Anime</button>
+          <button type="button" id="settingsBtn" class="collection-option settings-option">⚙ Einstellungen</button>
+        </nav>
+      </div>
+      <h1 id="pageTitle">JAV</h1>
       <button id="addBtn" class="primary-btn">+ Neu</button>
+      <button id="addActressBtn" class="primary-btn hidden" type="button">+ Actress</button>
+      <button id="addCharacterBtn" class="primary-btn hidden" type="button">+ Charakter</button>
     </header>
+
+    <div id="peopleViewTabs" class="view-tabs hidden" aria-label="Sammlungsansicht">
+      <button type="button" class="view-tab active" data-view="codes">Code-Karten</button>
+      <button type="button" class="view-tab hidden" data-view="actresses">Actress</button>
+      <button type="button" class="view-tab hidden" data-view="characters">Charakter</button>
+    </div>
 
     <div class="search-bar">
       <input type="text" id="searchInput" placeholder="Suchen nach Code, Actress, Tags..." />
     </div>
 
-    <div class="sort-bar">
+    <div id="sortBar" class="sort-bar">
       <label>Sortieren:</label>
       <select id="sortSelect">
-        <option value="code">Code</option>
+        <option value="code">Code / Titel</option>
         <option value="category">Kategorie</option>
         <option value="actress">Actress</option>
         <option value="date">Neueste zuerst</option>
+        <option value="actress-name" data-actress-sort hidden>Name</option>
+        <option value="actress-height-asc" data-actress-sort hidden>Körpergröße (aufsteigend)</option>
+        <option value="actress-height-desc" data-actress-sort hidden>Körpergröße (absteigend)</option>
+        <option value="actress-cup-asc" data-actress-sort hidden>Körbchengröße (aufsteigend)</option>
+        <option value="actress-cup-desc" data-actress-sort hidden>Körbchengröße (absteigend)</option>
+        <option value="character-name" data-character-sort hidden>Name</option>
       </select>
     </div>
 
@@ -39,15 +62,196 @@
   <div id="modal" class="modal hidden">
     <div class="modal-content">
       <h2 id="modalTitle">Neuer Eintrag</h2>
-      <input type="text" id="codeInput" placeholder="Code (z.B. MISM-464)" />
+      <input type="text" id="codeInput" placeholder="JAV-Code (z. B. MISM-464)" />
       <input type="text" id="categoryInput" placeholder="Kategorie" />
-      <input type="text" id="actressInput" placeholder="Actress" />
+      <input type="text" id="actressInput" placeholder="Actress (optional)" />
       <input type="text" id="tagsInput" placeholder="Tags (mit Komma trennen)" />
+      <fieldset class="settings-group entry-colors">
+        <legend>Kartenfarben</legend>
+        <label class="toggle-field" for="entryColorsEnabled">
+          <input type="checkbox" id="entryColorsEnabled" />
+          Eigene Farben für diese Karte verwenden
+        </label>
+        <div id="entryColorFields" class="color-grid">
+          <label class="toggle-field color-gradient-toggle" for="entryCardGradient">
+            <input type="checkbox" id="entryCardGradient" />
+            Farbverlauf für diese Karte
+          </label>
+          <label class="color-field" for="entryCardBg">Kartenfarbe
+            <input type="color" id="entryCardBg" />
+          </label>
+          <label class="color-field" for="entryCardGradientEnd">Verlaufs-Endfarbe
+            <input type="color" id="entryCardGradientEnd" />
+          </label>
+          <label class="color-field" for="entryCardText">Kartentext
+            <input type="color" id="entryCardText" />
+          </label>
+          <label class="color-field" for="entryCardMuted">Details / Tags
+            <input type="color" id="entryCardMuted" />
+          </label>
+          <label class="color-field" for="entryCardAccent">Code / Titel
+            <input type="color" id="entryCardAccent" />
+          </label>
+          <label class="color-field" for="entryChipBg">Kategorie-Hintergrund
+            <input type="color" id="entryChipBg" />
+          </label>
+          <label class="color-field" for="entryChipText">Kategorie-Text
+            <input type="color" id="entryChipText" />
+          </label>
+        </div>
+      </fieldset>
       <div class="modal-buttons">
         <button id="saveBtn" class="primary-btn">Speichern</button>
         <button id="cancelBtn" class="secondary-btn">Abbrechen</button>
       </div>
     </div>
+  </div>
+
+  <div id="actressModal" class="modal hidden">
+    <section class="modal-content actress-modal-content" role="dialog" aria-modal="true" aria-labelledby="actressModalTitle">
+      <h2 id="actressModalTitle">Neue Actress</h2>
+      <label id="personNameLabel" class="form-field" for="actressNameInput">Name
+        <input type="text" id="actressNameInput" placeholder="Name" autocomplete="name" />
+      </label>
+      <label id="characterSeriesField" class="form-field hidden" for="characterSeriesInput">Serie (optional)
+        <input type="text" id="characterSeriesInput" placeholder="Serie" />
+      </label>
+      <label id="personPhotoLabel" class="form-field" for="actressPhotoInput">Foto
+        <input type="file" id="actressPhotoInput" accept="image/*" />
+      </label>
+      <div id="actressPhotoPreview" class="actress-photo-preview hidden">
+        <img id="actressPreviewImage" alt="Vorschau des Actress-Fotos" />
+      </div>
+      <label id="removeActressPhotoField" class="toggle-field hidden" for="removeActressPhotoInput">
+        <input type="checkbox" id="removeActressPhotoInput" />
+        Vorhandenes Foto entfernen
+      </label>
+      <div id="actressMeasurements" class="actress-optional-fields">
+        <label id="actressHeightLabel" class="form-field" for="actressHeightInput">Körpergröße (optional, cm)
+          <input type="number" id="actressHeightInput" min="1" max="300" placeholder="z. B. 165" />
+        </label>
+        <label id="actressCupSizeLabel" class="form-field" for="actressCupSizeInput">Körbchengröße (optional)
+          <input type="text" id="actressCupSizeInput" placeholder="z. B. C" />
+        </label>
+      </div>
+      <fieldset class="settings-group entry-colors">
+        <legend>Kartenfarben</legend>
+        <label id="personColorsLabel" class="toggle-field" for="actressColorsEnabled">
+          <input type="checkbox" id="actressColorsEnabled" />
+          Eigene Farben für diese Karte verwenden
+        </label>
+        <div id="actressColorFields" class="color-grid color-fields-disabled">
+          <label class="toggle-field color-gradient-toggle" for="actressCardGradient">
+            <input type="checkbox" id="actressCardGradient" disabled />
+            Farbverlauf für diese Karte
+          </label>
+          <label class="color-field" for="actressCardBg">Kartenfarbe
+            <input type="color" id="actressCardBg" disabled />
+          </label>
+          <label class="color-field" for="actressCardGradientEnd">Verlaufs-Endfarbe
+            <input type="color" id="actressCardGradientEnd" disabled />
+          </label>
+          <label class="color-field" for="actressCardText">Kartentext
+            <input type="color" id="actressCardText" disabled />
+          </label>
+          <label class="color-field" for="actressCardMuted">Details
+            <input type="color" id="actressCardMuted" disabled />
+          </label>
+          <label class="color-field" for="actressCardAccent">Name
+            <input type="color" id="actressCardAccent" disabled />
+          </label>
+        </div>
+      </fieldset>
+      <div class="modal-buttons">
+        <button id="saveActressBtn" class="primary-btn" type="button">Speichern</button>
+        <button id="cancelActressBtn" class="secondary-btn" type="button">Abbrechen</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="settingsModal" class="modal hidden">
+    <section class="modal-content settings-content" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="settings-heading">
+        <h2 id="settingsTitle">Farben anpassen</h2>
+        <button id="closeSettingsBtn" class="settings-close" type="button" aria-label="Einstellungen schließen">×</button>
+      </div>
+      <p class="settings-description">Änderungen werden sofort übernommen und auf diesem Gerät gespeichert.</p>
+
+      <fieldset class="settings-group">
+        <legend>App-Hintergrund</legend>
+        <label class="toggle-field" for="pageGradientInput">
+          <input type="checkbox" id="pageGradientInput" />
+          Farbverlauf verwenden
+        </label>
+        <div class="color-grid">
+          <label class="color-field" for="pageBgInput">Hintergrundfarbe
+            <input type="color" id="pageBgInput" data-theme-color="pageBg" />
+          </label>
+          <label class="color-field" for="pageGradientEndInput">Verlaufs-Endfarbe
+            <input type="color" id="pageGradientEndInput" data-theme-color="pageGradientEnd" />
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="settings-group">
+        <legend>Karten</legend>
+        <label class="toggle-field" for="cardGradientInput">
+          <input type="checkbox" id="cardGradientInput" />
+          Farbverlauf für alle Karten verwenden
+        </label>
+        <div class="color-grid">
+          <label class="color-field" for="cardBgInput">Kartenfarbe
+            <input type="color" id="cardBgInput" data-theme-color="cardBg" />
+          </label>
+          <label class="color-field" for="cardGradientEndInput">Verlaufs-Endfarbe
+            <input type="color" id="cardGradientEndInput" data-theme-color="cardGradientEnd" />
+          </label>
+          <label class="color-field" for="cardTextInput">Kartentext
+            <input type="color" id="cardTextInput" data-theme-color="cardText" />
+          </label>
+          <label class="color-field" for="cardMutedInput">Details / Tags
+            <input type="color" id="cardMutedInput" data-theme-color="cardMuted" />
+          </label>
+          <label class="color-field" for="cardAccentInput">Code / Titel
+            <input type="color" id="cardAccentInput" data-theme-color="cardAccent" />
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="settings-group">
+        <legend>Oberfläche und Akzente</legend>
+        <div class="color-grid">
+          <label class="color-field" for="surfaceInput">Eingabefelder und Menüs
+            <input type="color" id="surfaceInput" data-theme-color="surface" />
+          </label>
+          <label class="color-field" for="textInput">Allgemeiner Text
+            <input type="color" id="textInput" data-theme-color="text" />
+          </label>
+          <label class="color-field" for="mutedInput">Sekundärer Text
+            <input type="color" id="mutedInput" data-theme-color="muted" />
+          </label>
+          <label class="color-field" for="accentInput">Akzentfarbe / Buttons
+            <input type="color" id="accentInput" data-theme-color="accent" />
+          </label>
+          <label class="color-field" for="buttonTextInput">Button-Text
+            <input type="color" id="buttonTextInput" data-theme-color="buttonText" />
+          </label>
+          <label class="color-field" for="chipBgInput">Kategorie-Hintergrund
+            <input type="color" id="chipBgInput" data-theme-color="chipBg" />
+          </label>
+          <label class="color-field" for="chipTextInput">Kategorie-Text
+            <input type="color" id="chipTextInput" data-theme-color="chipText" />
+          </label>
+          <label class="color-field" for="dangerInput">Löschen-Akzent
+            <input type="color" id="dangerInput" data-theme-color="danger" />
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="settings-actions">
+        <button id="resetThemeBtn" class="secondary-btn" type="button">Standardfarben wiederherstellen</button>
+      </div>
+    </section>
   </div>
 
   <script src="app.js"></script>
